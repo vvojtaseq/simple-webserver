@@ -1,110 +1,72 @@
 pipeline {
-  agent any
+    agent any
 
-  environment {
-    IMAGE_NAME = "simple-webserver"
-    BUILDER_IMAGE = "simple-webserver/builder:1.0"
-    RUNTIME_TAG = "${env.BUILD_ID}"
-    DOCKER_REGISTRY = "https://index.docker.io/v1/"
-    DOCKER_CREDENTIALS_ID = "docker-hub-credentials"
-
-  stages {
-
-    stage('Prepare builder image') {
-      steps {
-        script {
-          echo "Building builder image ${BUILDER_IMAGE}"
-          docker.build(BUILDER_IMAGE, "-f Dockerfile.build .")
-          sh "docker images | grep ${IMAGE_NAME} || true"
-        }
-      }
+    environment {
+        IMAGE_NAME = "simple-webserver"
+        BUILDER_IMAGE = "simple-webserver/builder:1.0"
+        RUNTIME_TAG = "${env.BUILD_ID}"
+        DOCKER_REGISTRY = "https://index.docker.io/v1/"
+        DOCKER_CREDENTIALS_ID = "docker-hub-credentials"
     }
 
-    stage('Build') {
-      steps {
-        script {
-          echo "Running build inside ${BUILDER_IMAGE}"
-          docker.image(BUILDER_IMAGE).inside {
-            sh 'go mod tidy'
-            sh 'go build -v -o webserver .'
-            sh 'ls -la ./webserver || true'
-            sh 'echo "=== Build finished ==="'
-          }
-          archiveArtifacts artifacts: 'webserver', fingerprint: true
-        }
-      }
-      post {
-        failure {
-          echo "Build failed — sprawdź logi powyżej"
-        }
-      }
-    }
+    stages {
 
-    stage('Test') {
-      steps {
-        script {
-          echo "Running tests (inside builder image)"
-          docker.image(BUILDER_IMAGE).inside {
-            sh 'go test ./... -v 2>&1 | tee test-output.txt || true'
-            sh 'cat test-output.txt'
-          }
-          archiveArtifacts artifacts: 'test-output.txt', fingerprint: true
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/vvojtaseq/simple-webserver.git'
+            }
         }
-      }
-      post {
-        always {
-          junit allowEmptyResults: true, testResults: '**/test-output.xml'
-        }
-        failure {
-          error "Test stage failed — sprawdź test-output.txt i logi"
-        }
-      }
-    }
 
-    stage('Build runtime image') {
-      steps {
-        script {
-          sh "docker build -t ${IMAGE_NAME}:${RUNTIME_TAG} ."
-          sh "docker images | grep ${IMAGE_NAME} || true"
-          sh "docker save ${IMAGE_NAME}:${RUNTIME_TAG} -o ${IMAGE_NAME}-${RUNTIME_TAG}.tar || true"
-          archiveArtifacts artifacts: "${IMAGE_NAME}-${RUNTIME_TAG}.tar"
+        stage('Build builder image') {
+            steps {
+                script {
+                    docker.build(BUILDER_IMAGE, "-f Dockerfile.build --target builder  .")
+                }
+                archiveArtifacts artifacts: 'webserver', fingerprint: true    
+            }
         }
-      }
-    }
+/*
+        stage('Build runtime image') {
+            steps {
+                script {
+                    sh "docker build -t ${IMAGE_NAME}:${RUNTIME_TAG} -f Dockerfile.build ."
+                }
+            }
+        }
 
-    stage('Deploy') {
-      steps {
-        script {
-          sh "docker rm -f webserver || true"
-          sh "docker run -d --name webserver -p 8082:8082 ${IMAGE_NAME}:${RUNTIME_TAG}"
-          sh "sleep 3"
-          sh "docker ps --filter name=webserver --format 'table {{.Names}}\\t{{.Image}}\\t{{.Status}}'"
-          sh "curl --fail -sS http://127.0.0.1:8082/ping || (echo 'ping failed'; docker logs webserver; exit 1)"
-          echo "Deployed and ping OK"
+        stage('Test') {
+            steps {
+                script {
+                    docker.image(BUILDER_IMAGE).inside {
+                        sh 'go test ./... -v | tee test-output.txt || true'
+                    }
+                    archiveArtifacts artifacts: 'test-output.txt', fingerprint: true
+                }
+            }
         }
-      }
-    }
 
-    stage('Publish') {
-      when {
-        expression {
-          return env.DOCKER_CREDENTIALS_ID != null && env.DOCKER_CREDENTIALS_ID != ''
+        stage('Deploy') {
+            steps {
+                script {
+                    sh "docker compose -f docker-compose.deploy.yml up -d"
+                    sleep 3
+                    sh "curl --fail -sS http://localhost:8082/ping"
+                }
+            }
         }
-      }
-      steps {
-        script {
-          docker.withRegistry("${DOCKER_REGISTRY}", "${DOCKER_CREDENTIALS_ID}") {
-            docker.image("${IMAGE_NAME}:${RUNTIME_TAG}").push('latest')
-            docker.image("${IMAGE_NAME}:${RUNTIME_TAG}").push("${RUNTIME_TAG}")
-          }
-        }
-      }
-    }
-  }
 
-  post {
-    always {
-      echo "Pipeline finished (status: ${currentBuild.currentResult})"
+        stage('Publish') {
+            when {
+                expression { env.DOCKER_CREDENTIALS_ID != null && env.DOCKER_CREDENTIALS_ID != '' }
+            }
+            steps {
+                script {
+                    docker.withRegistry("${DOCKER_REGISTRY}", "${DOCKER_CREDENTIALS_ID}") {
+                        docker.image("${IMAGE_NAME}:${RUNTIME_TAG}").push('latest')
+                        docker.image("${IMAGE_NAME}:${RUNTIME_TAG}").push("${RUNTIME_TAG}")
+                    }
+                }
+            }
+        }
     }
-  }
 }

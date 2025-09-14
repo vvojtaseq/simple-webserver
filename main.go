@@ -60,7 +60,7 @@ func PingHandler(s Storage) http.HandlerFunc {
 		res, err := s.Ping()
 		if err != nil {
 			resp.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(resp, err.Error())
+			fmt.Fprintf(resp, "%s", err.Error())
 			return
 		}
 		resp.WriteHeader(http.StatusOK)
