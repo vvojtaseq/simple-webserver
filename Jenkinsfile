@@ -63,14 +63,22 @@ pipeline {
 
         stage('Health Check') {
             steps {
-                sh """
-                    docker run --rm --network my-app-network curlimages/curl:8.7.1 \
-                    for i in {1..5}; do
-                        curl -f http://simple-webserver-container:8082/ping && break
-                        sleep 1
-                    done
-
-                """
+                script {
+                    sh '''
+                        i=1
+                        max_retries=5
+                        success=0
+                        while [ $i -le $max_retries ]; do
+                            if docker run --rm --network my-app-network curlimages/curl:8.7.1 \
+                                curl -f http://simple-webserver-container:8082/ping; then
+                                success=1
+                                break
+                            fi
+                            sleep 3
+                            i=$((i + 1))
+                        done
+                    '''
+                }
             }
         }
 
