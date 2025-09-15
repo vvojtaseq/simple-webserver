@@ -49,6 +49,7 @@ pipeline {
                 archiveArtifacts artifacts: 'test-output.txt,docker-test-logs.txt', fingerprint: true
             }
         }
+        
         stage('Deploy') {
             steps {
                 script {
