@@ -54,6 +54,7 @@ pipeline {
             steps {
                 script {
                     sh """
+                        docker network rm my-app-network || true
                         docker network create -d bridge my-app-network || true
                         docker rm -f redis-container simple-webserver-container || true
                         docker run -d --name redis-container --network my-app-network redis:7-alpine
