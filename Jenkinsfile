@@ -49,20 +49,14 @@ pipeline {
                 archiveArtifacts artifacts: 'test-output.txt,docker-test-logs.txt', fingerprint: true
             }
         }
-        stage('Pre-Deploy Cleanup') {
-            steps {
-                script {
-                    sh "docker rm -f simple-webserver-container redis-container || true"
-                    sh "fuser -k 8082/tcp || true"
-                    sh "docker network rm my-app-network || true"
-                }
-            }
-        }
+        
         stage('Deploy') {
             steps {
                 script {
                     sh """
+                        docker network rm my-app-network || true
                         docker network create -d bridge my-app-network || true
+                        docker rm -f redis-container simple-webserver-container || true
                         docker run -d --name redis-container --network my-app-network redis:7-alpine
                         docker run -d --name simple-webserver-container --network my-app-network \
                             -p 8082:8082 simple-webserver:${RUNTIME_TAG} \
@@ -122,20 +116,15 @@ pipeline {
                         docker rm -f redis-staging simple-webserver-staging || true
 
                         docker run -d --name redis-staging --network staging-network redis:7-alpine
-                        docker run -d --name simple-webserver-staging --network staging-network \
-                            -p 8083:8082 vvojtasek/simple-webserver:${RUNTIME_TAG} \
-                            ./webserver -redis redis-staging:6379
-
+                        docker run -d --name simple-webserver-staging --network staging-network -p 8082:8082 vvojtasek/simple-webserver:${RUNTIME_TAG} ./webserver -redis redis-staging:6379
                         sleep 5
-                        docker run --rm --network staging-network curlimages/curl:8.7.1 \
-                            curl -f http://simple-webserver-staging:8082/ping
-
+                        docker run --rm --network staging-network curlimages/curl:8.7.1 curl -f http://simple-webserver-staging:8082/ping
                         docker rm -f simple-webserver-staging redis-staging || true
                     """
+
                 }
             }
         }
-
 
     }
 }
