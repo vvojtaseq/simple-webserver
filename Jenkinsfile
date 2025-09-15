@@ -13,7 +13,7 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                git branch: 'master', url: 'https://github.com/vvojtaseq/simple-webserver.git'
+                git 'https://github.com/vvojtaseq/simple-webserver'
             }
         }
 
