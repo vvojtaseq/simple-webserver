@@ -24,15 +24,32 @@ pipeline {
         }
 
         stage('Test') {
-            steps {
-                sh """
-                    docker run --rm ${BUILDER_IMAGE} \
-                    sh -c 'cd /app && go test ./... -v | tee /app/test-output.txt || true'
-                """
-                sh "docker cp \$(docker create ${BUILDER_IMAGE}):/app/test-output.txt ${WORKSPACE}/test-output.txt || true"
-                archiveArtifacts artifacts: 'test-output.txt', fingerprint: true
+        steps {
+            script {
+            def mountStatus = sh(returnStatus: true, script: """
+                docker run --rm -v ${env.WORKSPACE}:/app -w /app ${BUILDER_IMAGE} \
+                sh -c 'test -f /app/go.mod || exit 2; go mod tidy && go test ./... -v | tee /app/test-output.txt || true'
+            """)
+
+            if (mountStatus != 0) {
+                def cid = sh(returnStdout: true, script: """
+                docker run -d ${BUILDER_IMAGE} sh -c 'cd /app && go test ./... -v | tee /app/test-output.txt || true'
+                """).trim()
+                sh "docker wait ${cid}"
+                sh "docker cp ${cid}:/app/test-output.txt ${env.WORKSPACE}/test-output.txt || true"
+                sh "docker logs ${cid} > ${env.WORKSPACE}/docker-test-logs.txt || true"
+                sh "docker rm ${cid} || true"
             }
+
+            if (!fileExists('test-output.txt')) {
+                sh "echo 'NO test-output.txt produced. Check docker-test-logs.txt for details.' > ${env.WORKSPACE}/test-output.txt || true"
+            }
+            }
+
+            archiveArtifacts artifacts: 'test-output.txt,docker-test-logs.txt', fingerprint: true
         }
+        }
+
     }
 }
 
