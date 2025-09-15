@@ -65,7 +65,11 @@ pipeline {
             steps {
                 sh """
                     docker run --rm --network my-app-network curlimages/curl:8.7.1 \
-                    curl -f http://simple-webserver-container:8082/ping
+                    for i in {1..5}; do
+                        curl -f http://simple-webserver-container:8082/ping && break
+                        sleep 1
+                    done
+
                 """
             }
         }
