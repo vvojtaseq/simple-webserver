@@ -11,12 +11,6 @@ pipeline {
     
     stages {
 
-        stage('Checkout') {
-            steps {
-                 sh 'rm -rf *'  // clean workspace
-                 sh 'git clone -b master https://github.com/vvojtaseq/simple-webserver.git .'
-            }
-        }
 
         stage('Build builder image') {
             steps {
