@@ -91,21 +91,20 @@ pipeline {
         }
         stage('Publish') {
             steps {
-                script {
-                    docker.withRegistry('https://index.docker.io/v1/', 'docker-hub-credentials') {
-                        sh "docker tag simple-webserver:${RUNTIME_TAG} YOUR_DOCKERHUB_USERNAME/simple-webserver:${RUNTIME_TAG}"
-                        sh "docker push YOUR_DOCKERHUB_USERNAME/simple-webserver:${RUNTIME_TAG}"
-                    }
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh """
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker tag simple-webserver:${RUNTIME_TAG} YOUR_DOCKERHUB_USERNAME/simple-webserver:${RUNTIME_TAG}
+                        docker push YOUR_DOCKERHUB_USERNAME/simple-webserver:${RUNTIME_TAG}
+                    """
                 }
             }
         }
+
         stage('Staging') {
             steps {
                 script {
-                    // siec
                     sh "docker network create -d bridge staging-network || true"
-                    
-                    // kontener z opublikowanego obrazu
                     sh "docker run -d --name simple-webserver-staging --network staging-network -p 8082:8082 YOUR_DOCKERHUB_USERNAME/simple-webserver:${RUNTIME_TAG}"
                     sleep 5
                     sh "docker run --rm --network staging-network curlimages/curl:8.7.1 curl -f http://simple-webserver-staging:8082/ping"
@@ -113,6 +112,7 @@ pipeline {
                 }
             }
         }
+
     }
 }
 
