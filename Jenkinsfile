@@ -89,6 +89,14 @@ pipeline {
                 }
             }
         }
+        stage('Post-Health Cleanup') {
+            steps {
+                script {
+                    sh "docker rm -f simple-webserver-container || true"
+                }
+            }
+        }
+
         stage('Publish') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
