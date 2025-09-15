@@ -8,7 +8,7 @@ pipeline {
 //        DOCKER_REGISTRY = "https://index.docker.io/v1/"
 //        DOCKER_CREDENTIALS_ID = "docker-hub-credentials"
     }
-
+    
     stages {
 
         stage('Checkout') {
@@ -19,10 +19,8 @@ pipeline {
 
         stage('Build builder image') {
             steps {
-                script {
-                    docker.build(BUILDER_IMAGE, "-f Dockerfile.build --target builder  .")
-                }
-                archiveArtifacts artifacts: 'webserver', fingerprint: true    
+                sh "docker build -t ${BUILDER_IMAGE} -f Dockerfile.build --target builder ."
+                archiveArtifacts artifacts: 'webserver', fingerprint: true
             }
         }
     }
