@@ -10,8 +10,6 @@ pipeline {
     }
     
     stages {
-
-
         stage('Build builder image') {
             steps {
                 sh "docker build -t ${BUILDER_IMAGE} -f Dockerfile.build --target builder ."
@@ -19,24 +17,19 @@ pipeline {
             }
         }
 
-
         stage('Build runtime image') {
             steps {
-                script {
-                    sh "docker build -t ${IMAGE_NAME}:${RUNTIME_TAG} -f Dockerfile.build ."
-                }
+                sh "docker build -t ${IMAGE_NAME}:${RUNTIME_TAG} -f Dockerfile.build ."
             }
         }
 
-
         stage('Test') {
             steps {
-                script {
-                    docker.image(BUILDER_IMAGE).inside {
-                        sh 'go test ./... -v | tee test-output.txt || true'
-                    }
-                    archiveArtifacts artifacts: 'test-output.txt', fingerprint: true
-                }
+                sh """
+                    docker run --rm -v ${WORKSPACE}:/app -w /app ${BUILDER_IMAGE} \
+                    sh -c 'go test ./... -v | tee test-output.txt || true'
+                """
+                archiveArtifacts artifacts: 'test-output.txt', fingerprint: true
             }
         }
     }
