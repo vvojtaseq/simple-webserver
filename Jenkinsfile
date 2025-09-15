@@ -122,7 +122,7 @@ pipeline {
 
                         sleep 5
                         docker run --rm --network staging-network curlimages/curl:8.7.1 \
-                            curl -f http://simple-webserver-staging:8083/ping
+                            curl -f http://simple-webserver-staging:8082/ping
 
                         docker rm -f simple-webserver-staging redis-staging || true
                     """
