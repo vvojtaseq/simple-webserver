@@ -24,36 +24,37 @@ pipeline {
         }
 
         stage('Test') {
-        steps {
-            script {
-            def mountStatus = sh(returnStatus: true, script: """
-                docker run --rm -v ${env.WORKSPACE}:/app -w /app ${BUILDER_IMAGE} \
-                sh -c 'test -f /app/go.mod || exit 2; go mod tidy && go test ./... -v | tee /app/test-output.txt || true'
-            """)
+            steps {
+                script {
+                def mountStatus = sh(returnStatus: true, script: """
+                    docker run --rm -v ${env.WORKSPACE}:/app -w /app ${BUILDER_IMAGE} \
+                    sh -c 'test -f /app/go.mod || exit 2; go mod tidy && go test ./... -v | tee /app/test-output.txt || true'
+                """)
 
-            if (mountStatus != 0) {
-                def cid = sh(returnStdout: true, script: """
-                docker run -d ${BUILDER_IMAGE} sh -c 'cd /app && go test ./... -v | tee /app/test-output.txt || true'
-                """).trim()
-                sh "docker wait ${cid}"
-                sh "docker cp ${cid}:/app/test-output.txt ${env.WORKSPACE}/test-output.txt || true"
-                sh "docker logs ${cid} > ${env.WORKSPACE}/docker-test-logs.txt || true"
-                sh "docker rm ${cid} || true"
-            }
+                if (mountStatus != 0) {
+                    def cid = sh(returnStdout: true, script: """
+                    docker run -d ${BUILDER_IMAGE} sh -c 'cd /app && go test ./... -v | tee /app/test-output.txt || true'
+                    """).trim()
+                    sh "docker wait ${cid}"
+                    sh "docker cp ${cid}:/app/test-output.txt ${env.WORKSPACE}/test-output.txt || true"
+                    sh "docker logs ${cid} > ${env.WORKSPACE}/docker-test-logs.txt || true"
+                    sh "docker rm ${cid} || true"
+                }
 
-            if (!fileExists('test-output.txt')) {
-                sh "echo 'NO test-output.txt produced. Check docker-test-logs.txt for details.' > ${env.WORKSPACE}/test-output.txt || true"
-            }
-            }
+                if (!fileExists('test-output.txt')) {
+                    sh "echo 'NO test-output.txt produced. Check docker-test-logs.txt for details.' > ${env.WORKSPACE}/test-output.txt || true"
+                }
+                }
 
-            archiveArtifacts artifacts: 'test-output.txt,docker-test-logs.txt', fingerprint: true
-        }
+                archiveArtifacts artifacts: 'test-output.txt,docker-test-logs.txt', fingerprint: true
+            }
         }
         stage('Deploy') {
             steps {
                 script {
                     sh """
                         docker network create -d bridge my-app-network || true
+                        docker rm -f simple-webserver-container || true
                         docker run -d --name simple-webserver-container --network my-app-network -p 8082:8082 simple-webserver:${RUNTIME_TAG}
                     """
                 }
