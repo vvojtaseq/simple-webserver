@@ -55,8 +55,11 @@ pipeline {
                 script {
                     sh """
                         docker network create -d bridge my-app-network || true
-                        docker rm -f simple-webserver-container || true
-                        docker run -d --name simple-webserver-container --network my-app-network -p 8082:8082 simple-webserver:${RUNTIME_TAG}
+                        docker rm -f redis-container simple-webserver-container || true
+                        docker run -d --name redis-container --network my-app-network redis:7-alpine
+                        docker run -d --name simple-webserver-container --network my-app-network \
+                            -p 8082:8082 simple-webserver:${RUNTIME_TAG} \
+                            ./webserver -redis redis-container:6379
                     """
                 }
             }
@@ -67,17 +70,21 @@ pipeline {
                 script {
                     sh '''
                         i=1
-                        max_retries=5
+                        max_retries=10
                         success=0
                         while [ $i -le $max_retries ]; do
-                            if docker run --rm --network my-app-network curlimages/curl:8.7.1 \
-                                curl -f http://simple-webserver-container:8082/ping; then
+                            if docker run --rm --network my-app-network \
+                                curlimages/curl:8.7.1 curl -f http://simple-webserver-container:8082/ping; then
                                 success=1
                                 break
                             fi
                             sleep 3
                             i=$((i + 1))
                         done
+                        if [ $success -ne 1 ]; then
+                            echo "Health check failed"
+                            exit 1
+                        fi
                     '''
                 }
             }
