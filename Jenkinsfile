@@ -18,5 +18,31 @@ pipeline {
                 archiveArtifacts artifacts: 'webserver', fingerprint: true
             }
         }
+
+
+        stage('Build runtime image') {
+            steps {
+                script {
+                    sh "docker build -t ${IMAGE_NAME}:${RUNTIME_TAG} -f Dockerfile.build ."
+                }
+            }
+        }
+
+
+        stage('Test') {
+            steps {
+                script {
+                    docker.image(BUILDER_IMAGE).inside {
+                        sh 'go test ./... -v | tee test-output.txt || true'
+                    }
+                    archiveArtifacts artifacts: 'test-output.txt', fingerprint: true
+                }
+            }
+        }
     }
 }
+
+
+
+
+
