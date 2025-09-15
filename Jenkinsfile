@@ -49,14 +49,19 @@ pipeline {
                 archiveArtifacts artifacts: 'test-output.txt,docker-test-logs.txt', fingerprint: true
             }
         }
-        
+        stage('Pre-Deploy Cleanup') {
+            steps {
+                script {
+                    sh "docker rm -f simple-webserver-container redis-container || true"
+                    sh "docker network rm my-app-network || true"
+                }
+            }
+        }
         stage('Deploy') {
             steps {
                 script {
                     sh """
-                        docker network rm my-app-network || true
                         docker network create -d bridge my-app-network || true
-                        docker rm -f redis-container simple-webserver-container || true
                         docker run -d --name redis-container --network my-app-network redis:7-alpine
                         docker run -d --name simple-webserver-container --network my-app-network \
                             -p 8082:8082 simple-webserver:${RUNTIME_TAG} \
