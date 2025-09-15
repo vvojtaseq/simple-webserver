@@ -5,8 +5,8 @@ pipeline {
         IMAGE_NAME = "simple-webserver"
         BUILDER_IMAGE = "simple-webserver/builder:1.0"
         RUNTIME_TAG = "${env.BUILD_ID}"
-//        DOCKER_REGISTRY = "https://index.docker.io/v1/"
-//        DOCKER_CREDENTIALS_ID = "docker-hub-credentials"
+        DOCKER_REGISTRY = "https://index.docker.io/v1/"
+        DOCKER_CREDENTIALS_ID = "docker-hub-credentials"
     }
     
     stages {
@@ -81,7 +81,30 @@ pipeline {
                 }
             }
         }
-
+        stage('Publish') {
+            steps {
+                script {
+                    docker.withRegistry('https://index.docker.io/v1/', 'docker-hub-credentials') {
+                        sh "docker tag simple-webserver:${RUNTIME_TAG} YOUR_DOCKERHUB_USERNAME/simple-webserver:${RUNTIME_TAG}"
+                        sh "docker push YOUR_DOCKERHUB_USERNAME/simple-webserver:${RUNTIME_TAG}"
+                    }
+                }
+            }
+        }
+        stage('Staging') {
+            steps {
+                script {
+                    // siec
+                    sh "docker network create -d bridge staging-network || true"
+                    
+                    // kontener z opublikowanego obrazu
+                    sh "docker run -d --name simple-webserver-staging --network staging-network -p 8082:8082 YOUR_DOCKERHUB_USERNAME/simple-webserver:${RUNTIME_TAG}"
+                    sleep 5
+                    sh "docker run --rm --network staging-network curlimages/curl:8.7.1 curl -f http://simple-webserver-staging:8082/ping"
+                    sh "docker rm -f simple-webserver-staging || true"
+                }
+            }
+        }
     }
 }
 
