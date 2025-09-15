@@ -55,12 +55,11 @@ pipeline {
                     sh """
                         docker run -d --name ${IMAGE_NAME}-container -p 8082:8082 ${IMAGE_NAME}:${RUNTIME_TAG}
                         sleep 5
-                        curl --fail -sS http://localhost:8082/ping
+                        docker exec ${IMAGE_NAME}-container curl --fail -sS http://localhost:8082/ping
                     """
                 }
             }
         }
-
     }
 }
 
