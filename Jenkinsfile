@@ -117,7 +117,7 @@ pipeline {
 
                         docker run -d --name redis-staging --network staging-network redis:7-alpine
                         docker run -d --name simple-webserver-staging --network staging-network \
-                            -p 8083:8083 vvojtasek/simple-webserver:${RUNTIME_TAG} \
+                            -p 8083:8082 vvojtasek/simple-webserver:${RUNTIME_TAG} \
                             ./webserver -redis redis-staging:6379
 
                         sleep 5
