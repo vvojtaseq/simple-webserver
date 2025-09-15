@@ -112,12 +112,15 @@ pipeline {
                 script {
                     sh """
                         docker network create -d bridge staging-network || true
-                        docker rm -f simple-webserver-staging || true
-                        docker run -d --name simple-webserver-staging --network staging-network -p 8082:8082 vvojtasek/simple-webserver:${RUNTIME_TAG}
+                        docker rm -f redis-staging simple-webserver-staging || true
+
+                        docker run -d --name redis-staging --network staging-network redis:7-alpine
+                        docker run -d --name simple-webserver-staging --network staging-network -p 8082:8082 vvojtasek/simple-webserver:${RUNTIME_TAG} ./webserver -redis redis-staging:6379
                         sleep 5
                         docker run --rm --network staging-network curlimages/curl:8.7.1 curl -f http://simple-webserver-staging:8082/ping
-                        docker rm -f simple-webserver-staging || true
+                        docker rm -f simple-webserver-staging redis-staging || true
                     """
+
                 }
             }
         }
