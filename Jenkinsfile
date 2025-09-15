@@ -13,7 +13,8 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                git 'https://github.com/vvojtaseq/simple-webserver'
+                 sh 'rm -rf *'  // clean workspace
+                 sh 'git clone -b master https://github.com/vvojtaseq/simple-webserver.git .'
             }
         }
 
