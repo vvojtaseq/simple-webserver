@@ -26,9 +26,10 @@ pipeline {
         stage('Test') {
             steps {
                 sh """
-                    docker run --rm -v ${WORKSPACE}:/app -w /app ${BUILDER_IMAGE} \
-                    sh -c 'go test ./... -v | tee test-output.txt || true'
+                    docker run --rm ${BUILDER_IMAGE} \
+                    sh -c 'cd /app && go test ./... -v | tee /app/test-output.txt || true'
                 """
+                sh "docker cp \$(docker create ${BUILDER_IMAGE}):/app/test-output.txt ${WORKSPACE}/test-output.txt || true"
                 archiveArtifacts artifacts: 'test-output.txt', fingerprint: true
             }
         }
