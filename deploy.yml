@@ -44,7 +44,7 @@
             image: vvojtasek/simple-webserver:{{ runtime_tag }}
             command: ./webserver -redis redis:6379
             ports:
-              - "8082:8082"
+              - "8083:8082"
             networks:
               - name: app-network
             state: started

@@ -110,13 +110,15 @@ pipeline {
         }
         stage('Staging') {
             steps {
-                sh """
-                    ansible-playbook -i hosts.ini deploy.yml \
-                    --extra-vars "runtime_tag=${RUNTIME_TAG}"
-                """
+                script {
+                    sh """
+                        echo -e "[staging]\\n127.0.0.1 ansible_connection=local" > ${env.WORKSPACE}/hosts.ini
+                        ansible-playbook -i ${env.WORKSPACE}/hosts.ini deploy.yml --extra-vars runtime_tag=${RUNTIME_TAG} \
+                            --extra-vars "runtime_port=8083"
+                    """
+                }
             }
         }
-
     }
 }
 
