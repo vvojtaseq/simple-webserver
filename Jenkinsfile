@@ -53,13 +53,22 @@ pipeline {
             steps {
                 script {
                     sh """
-                        docker run -d --name ${IMAGE_NAME}-container -p 8082:8082 ${IMAGE_NAME}:${RUNTIME_TAG}
-                        sleep 5
-                        docker exec ${IMAGE_NAME}-container curl --fail -sS http://localhost:8082/ping
+                        docker network create -d bridge my-app-network || true
+                        docker run -d --name simple-webserver-container --network my-app-network -p 8082:8082 simple-webserver:${RUNTIME_TAG}
                     """
                 }
             }
         }
+
+        stage('Health Check') {
+            steps {
+                sh """
+                    docker run --rm --network my-app-network curlimages/curl:8.7.1 \
+                    curl -f http://simple-webserver-container:8082/ping
+                """
+            }
+        }
+
     }
 }
 
